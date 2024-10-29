@@ -1,11 +1,10 @@
 import express from 'express';
+import cors from 'cors';
 import multer from 'multer';
 import fs from 'fs';
 import path from 'path';
 import fetch from 'node-fetch';
 import dotenv from 'dotenv';
-import cors from 'cors';  // Import CORS middleware
-import { v4 as uuidv4 } from 'uuid'; // Add this line for generating unique IDs
 
 dotenv.config();
 
@@ -13,11 +12,11 @@ const app = express();
 const upload = multer({ dest: 'uploads/' });
 const DROPBOX_ACCESS_TOKEN = process.env.DROPBOX_ACCESS_TOKEN;
 
-// Enable CORS globally
+// Add CORS middleware
 app.use(cors({
-    origin: 'https://leoscarin.com',  // Allow only requests from your website
-    methods: ['GET', 'POST'],          // Specify allowed HTTP methods
-    allowedHeaders: ['Content-Type', 'Authorization'], // Allow necessary headers
+    origin: 'https://leoscarin.com', // Allow requests from this origin
+    methods: ['GET', 'POST'], // Define allowed methods
+    credentials: true // If you need to use cookies or authentication headers
 }));
 
 // Serve static files in the 'public' directory (index.html, etc.)
@@ -26,12 +25,10 @@ app.use(express.static('public'));
 // Route to handle file uploads
 app.post('/upload', upload.single('audio'), async (req, res) => {
     try {
-        // Generate a unique filename using UUID
-        const uniqueFilename = `audio_${uuidv4()}.wav`;
-
+        // Path of the uploaded file
         const filePath = path.join(process.cwd(), req.file.path);
         const fileContent = fs.readFileSync(filePath);
-        const dropboxPath = `/audio/${uniqueFilename}`;
+        const dropboxPath = `/audio/${req.file.originalname}`;
 
         // Upload file to Dropbox
         const dropboxResponse = await fetch('https://content.dropboxapi.com/2/files/upload', {
@@ -54,6 +51,7 @@ app.post('/upload', upload.single('audio'), async (req, res) => {
         // Remove the file from local storage
         fs.unlinkSync(filePath);
 
+        // Check if upload was successful
         if (dropboxResponse.ok) {
             res.json({ message: 'File uploaded successfully!', dropboxData });
         } else {
@@ -79,6 +77,7 @@ app.get('/archive', async (req, res) => {
 
         const data = await dropboxResponse.json();
 
+        // Check if fetching archive was successful
         if (dropboxResponse.ok) {
             const audioFiles = data.entries.map(entry => ({
                 name: entry.name,
@@ -92,6 +91,11 @@ app.get('/archive', async (req, res) => {
         console.error('Error fetching archive:', error);
         res.status(500).json({ message: 'Server error', error });
     }
+});
+
+// Root route (optional) to serve a simple message or redirect to index.html
+app.get('/', (req, res) => {
+    res.send('Welcome to the Digital Fart Backend API');
 });
 
 // Start the server
