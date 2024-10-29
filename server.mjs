@@ -16,6 +16,7 @@ const DROPBOX_ACCESS_TOKEN = process.env.DROPBOX_ACCESS_TOKEN;
 app.use(cors({
     origin: 'https://leoscarin.com', // Allow requests from this origin
     methods: ['GET', 'POST'], // Define allowed methods
+    allowedHeaders: ['Content-Type', 'Authorization'], // Allow appropriate headers
     credentials: true // If you need to use cookies or authentication headers
 }));
 
