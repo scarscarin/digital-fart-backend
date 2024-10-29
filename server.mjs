@@ -5,6 +5,7 @@ import path from 'path';
 import fetch from 'node-fetch';
 import dotenv from 'dotenv';
 import cors from 'cors';  // Import CORS middleware
+import { v4 as uuidv4 } from 'uuid'; // Add this line for generating unique IDs
 
 dotenv.config();
 
@@ -25,9 +26,12 @@ app.use(express.static('public'));
 // Route to handle file uploads
 app.post('/upload', upload.single('audio'), async (req, res) => {
     try {
+        // Generate a unique filename using UUID
+        const uniqueFilename = `audio_${uuidv4()}.wav`;
+
         const filePath = path.join(process.cwd(), req.file.path);
         const fileContent = fs.readFileSync(filePath);
-        const dropboxPath = `/audio/${req.file.originalname}`;
+        const dropboxPath = `/audio/${uniqueFilename}`;
 
         // Upload file to Dropbox
         const dropboxResponse = await fetch('https://content.dropboxapi.com/2/files/upload', {
