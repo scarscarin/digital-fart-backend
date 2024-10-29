@@ -4,7 +4,7 @@ import fs from 'fs';
 import path from 'path';
 import fetch from 'node-fetch';
 import dotenv from 'dotenv';
-import cors from 'cors';  // Import CORS
+import cors from 'cors';  // Import CORS middleware
 
 dotenv.config();
 
@@ -14,9 +14,9 @@ const DROPBOX_ACCESS_TOKEN = process.env.DROPBOX_ACCESS_TOKEN;
 
 // Enable CORS globally
 app.use(cors({
-    origin: 'https://leoscarin.com',  // Allow requests from the frontend domain
-    methods: ['GET', 'POST'],  // Specify allowed methods
-    allowedHeaders: ['Content-Type', 'Authorization'],  // Allow required headers
+    origin: 'https://leoscarin.com',  // Allow only requests from your website
+    methods: ['GET', 'POST'],          // Specify allowed HTTP methods
+    allowedHeaders: ['Content-Type', 'Authorization'], // Allow necessary headers
 }));
 
 // Serve static files in the 'public' directory (index.html, etc.)
@@ -25,7 +25,6 @@ app.use(express.static('public'));
 // Route to handle file uploads
 app.post('/upload', upload.single('audio'), async (req, res) => {
     try {
-        // Path of the uploaded file
         const filePath = path.join(process.cwd(), req.file.path);
         const fileContent = fs.readFileSync(filePath);
         const dropboxPath = `/audio/${req.file.originalname}`;
@@ -51,7 +50,6 @@ app.post('/upload', upload.single('audio'), async (req, res) => {
         // Remove the file from local storage
         fs.unlinkSync(filePath);
 
-        // Check if upload was successful
         if (dropboxResponse.ok) {
             res.json({ message: 'File uploaded successfully!', dropboxData });
         } else {
@@ -77,7 +75,6 @@ app.get('/archive', async (req, res) => {
 
         const data = await dropboxResponse.json();
 
-        // Check if fetching archive was successful
         if (dropboxResponse.ok) {
             const audioFiles = data.entries.map(entry => ({
                 name: entry.name,
@@ -91,11 +88,6 @@ app.get('/archive', async (req, res) => {
         console.error('Error fetching archive:', error);
         res.status(500).json({ message: 'Server error', error });
     }
-});
-
-// Root route (optional) to serve a simple message or redirect to index.html
-app.get('/', (req, res) => {
-    res.send('Welcome to the Digital Fart Backend API');
 });
 
 // Start the server
