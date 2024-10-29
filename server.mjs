@@ -12,13 +12,22 @@ const app = express();
 const upload = multer({ dest: 'uploads/' });
 const DROPBOX_ACCESS_TOKEN = process.env.DROPBOX_ACCESS_TOKEN;
 
+const allowedOrigins = ['https://leoscarin.com'];
+
 // Add CORS middleware
 app.use(cors({
-  origin: 'https://leoscarin.com', // Update if your frontend is hosted elsewhere
-  methods: ['GET', 'POST'],
-  allowedHeaders: ['Content-Type', 'Authorization'],
-  credentials: true,
-}));
+    origin: function (origin, callback) {
+      if (!origin || allowedOrigins.includes(origin)) {
+        callback(null, true);
+      } else {
+        console.error(`Origin ${origin} not allowed by CORS`);
+        callback(new Error('Not allowed by CORS'));
+      }
+    },
+    methods: ['GET', 'POST'],
+    allowedHeaders: ['Content-Type', 'Authorization'],
+    credentials: true,
+  }));
 
 // Serve static files in the 'public' directory (index.html, etc.)
 app.use(express.static('public'));
