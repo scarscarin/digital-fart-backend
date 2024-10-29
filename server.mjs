@@ -12,9 +12,11 @@ const app = express();
 const upload = multer({ dest: 'uploads/' });
 const DROPBOX_ACCESS_TOKEN = process.env.DROPBOX_ACCESS_TOKEN;
 
-// Enable CORS for requests from your frontend domain
+// Enable CORS globally
 app.use(cors({
-    origin: 'https://leoscarin.com'  // Replace this with the frontend domain
+    origin: 'https://leoscarin.com',  // Allow requests from the frontend domain
+    methods: ['GET', 'POST'],  // Specify allowed methods
+    allowedHeaders: ['Content-Type', 'Authorization'],  // Allow required headers
 }));
 
 // Serve static files in the 'public' directory (index.html, etc.)
