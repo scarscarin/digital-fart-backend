@@ -4,12 +4,18 @@ import fs from 'fs';
 import path from 'path';
 import fetch from 'node-fetch';
 import dotenv from 'dotenv';
+import cors from 'cors';  // Import CORS
 
 dotenv.config();
 
 const app = express();
 const upload = multer({ dest: 'uploads/' });
 const DROPBOX_ACCESS_TOKEN = process.env.DROPBOX_ACCESS_TOKEN;
+
+// Enable CORS for requests from your frontend domain
+app.use(cors({
+    origin: 'https://leoscarin.com'  // Replace this with the frontend domain
+}));
 
 // Serve static files in the 'public' directory (index.html, etc.)
 app.use(express.static('public'));
