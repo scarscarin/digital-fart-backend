@@ -99,7 +99,7 @@ app.post('/upload', upload.single('audio'), async (req, res) => {
     await ensureAudioFolderExists();
 
     // Set the filename to "Fart.mp3" (without the emoji)
-    const fileName = 'Fart.mp3';
+    const fileName = 'Fart';
     const dropboxPath = `/audio/${fileName}`;
 
     // Prepare the arguments for the Dropbox API
