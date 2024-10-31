@@ -5,6 +5,11 @@ import fs from 'fs';
 import path from 'path';
 import fetch from 'node-fetch';
 import dotenv from 'dotenv';
+import ffmpeg from 'fluent-ffmpeg';
+import ffmpegInstaller from '@ffmpeg-installer/ffmpeg';
+
+// Set FFmpeg path for fluent-ffmpeg
+ffmpeg.setFfmpegPath(ffmpegInstaller.path);
 
 dotenv.config();
 
@@ -37,8 +42,34 @@ app.post('/upload', upload.single('audio'), async (req, res) => {
   console.log('Received file:', req.file);
   try {
     // Path of the uploaded file
-    const filePath = path.join(process.cwd(), req.file.path);
-    const fileContent = fs.readFileSync(filePath);
+    const wavFilePath = path.join(process.cwd(), req.file.path);
+    const mp3FileName = `${path.parse(req.file.filename).name}.mp3`;
+    const mp3FilePath = path.join(process.cwd(), 'uploads', mp3FileName);
+
+    // Convert WAV to MP3
+    await new Promise((resolve, reject) => {
+      ffmpeg(wavFilePath)
+        .toFormat('mp3')
+        .on('error', (err) => {
+          console.error('An error occurred during conversion:', err.message);
+          reject(err);
+        })
+        .on('end', () => {
+          console.log('Conversion to MP3 completed.');
+          resolve();
+        })
+        .save(mp3FilePath);
+    });
+
+    // Read the MP3 file content
+    const fileContent = fs.readFileSync(mp3FilePath);
+
+    // Remove the original WAV file
+    fs.unlink(wavFilePath, (err) => {
+      if (err) {
+        console.error('Error deleting WAV file:', err);
+      }
+    });
 
     // Function to ensure the '/audio' folder exists
     async function ensureAudioFolderExists() {
@@ -67,8 +98,8 @@ app.post('/upload', upload.single('audio'), async (req, res) => {
     // Ensure the '/audio' folder exists
     await ensureAudioFolderExists();
 
-    // Set the filename to "Fart.wav" without the emoji
-    const fileName = 'Fart.wav';
+    // Set the filename to "Fart.mp3" (without the emoji)
+    const fileName = 'Fart.mp3';
     const dropboxPath = `/audio/${fileName}`;
 
     // Prepare the arguments for the Dropbox API
@@ -98,9 +129,9 @@ app.post('/upload', upload.single('audio'), async (req, res) => {
       console.error('Dropbox upload error:', errorData);
 
       // Delete the local file
-      fs.unlink(filePath, (err) => {
+      fs.unlink(mp3FilePath, (err) => {
         if (err) {
-          console.error('Error deleting local file:', err);
+          console.error('Error deleting local MP3 file:', err);
         }
       });
 
@@ -111,7 +142,7 @@ app.post('/upload', upload.single('audio'), async (req, res) => {
     const dropboxData = await dropboxResponse.json();
 
     // Remove the file from local storage
-    fs.unlink(filePath, (err) => {
+    fs.unlink(mp3FilePath, (err) => {
       if (err) {
         console.error('Error deleting local file:', err);
       }
@@ -124,8 +155,8 @@ app.post('/upload', upload.single('audio'), async (req, res) => {
 
     // Ensure the local file is deleted in case of an error
     if (req.file && req.file.path) {
-      const filePath = path.join(process.cwd(), req.file.path);
-      fs.unlink(filePath, (err) => {
+      const wavFilePath = path.join(process.cwd(), req.file.path);
+      fs.unlink(wavFilePath, (err) => {
         if (err) {
           console.error('Error deleting local file:', err);
         }
