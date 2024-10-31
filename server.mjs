@@ -39,7 +39,42 @@ app.post('/upload', upload.single('audio'), async (req, res) => {
     // Path of the uploaded file
     const filePath = path.join(process.cwd(), req.file.path);
     const fileContent = fs.readFileSync(filePath);
-    const dropboxPath = `/audio/${Date.now()}_${req.file.originalname}`;
+
+    // Step 1: List existing files in the Dropbox '/audio' folder
+    const listResponse = await fetch('https://api.dropboxapi.com/2/files/list_folder', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${DROPBOX_ACCESS_TOKEN}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ path: '/audio' }),
+    });
+
+    const listData = await listResponse.json();
+
+    let nextNumber = 1;
+
+    if (listResponse.ok) {
+      // Step 2: Extract numbers from filenames
+      const numbers = listData.entries.map(entry => {
+        const match = entry.name.match(/Fart #(\d+)\.wav$/);
+        return match ? parseInt(match[1], 10) : 0;
+      });
+
+      // Step 3: Determine the next number
+      if (numbers.length > 0) {
+        const maxNumber = Math.max(...numbers);
+        nextNumber = maxNumber + 1;
+      }
+    } else {
+      console.error('Error listing files:', listData);
+      // Handle error if needed
+    }
+
+    // Step 4: Name the new file
+    const formattedNumber = String(nextNumber).padStart(3, '0');
+    const fileName = `💨 Fart #${formattedNumber}.wav`;
+    const dropboxPath = `/audio/${fileName}`;
 
     // Upload file to Dropbox
     const dropboxResponse = await fetch('https://content.dropboxapi.com/2/files/upload', {
@@ -116,7 +151,12 @@ app.get('/archive', async (req, res) => {
     const data = await dropboxResponse.json();
 
     if (dropboxResponse.ok) {
+      // Sort files by their number
       const audioFiles = (await Promise.all(data.entries.map(async (entry) => {
+        // Get the number from the filename
+        const match = entry.name.match(/Fart #(\d+)\.wav$/);
+        const number = match ? parseInt(match[1], 10) : 0;
+
         // Get a temporary link for each file
         const tempLinkResponse = await fetch('https://api.dropboxapi.com/2/files/get_temporary_link', {
           method: 'POST',
@@ -136,12 +176,16 @@ app.get('/archive', async (req, res) => {
           return {
             name: entry.name,
             link,
+            number,
           };
         } else {
           console.error('Error getting temporary link:', tempLinkData);
           return null; // Skip this entry if there's an error
         }
       }))).filter(file => file !== null); // Filter out null entries
+
+      // Sort the files by their number
+      audioFiles.sort((a, b) => a.number - b.number);
 
       res.json({ entries: audioFiles });
     } else {
