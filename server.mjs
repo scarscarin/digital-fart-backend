@@ -100,7 +100,7 @@ app.post('/upload', upload.single('audio'), async (req, res) => {
 
     // Step 4: Name the new file without the emoji
     const formattedNumber = String(nextNumber).padStart(3, '0');
-    const fileName = `Fart #${formattedNumber}.wav`; // Remove the emoji here
+    const fileName = `Fart ${formattedNumber}.wav`; // Remove the emoji here
     const dropboxPath = `/audio/${fileName}`;
 
     // Upload file to Dropbox
@@ -182,7 +182,7 @@ app.get('/archive', async (req, res) => {
       // Sort files by their number
       const audioFiles = (await Promise.all(data.entries.map(async (entry) => {
         // Get the number from the filename
-        const match = entry.name.match(/Fart #(\d+)\.wav$/);
+        const match = entry.name.match(/Fart (\d+)\.wav$/);
         const number = match ? parseInt(match[1], 10) : 0;
 
         // Get a temporary link for each file
