@@ -40,6 +40,35 @@ app.post('/upload', upload.single('audio'), async (req, res) => {
     const filePath = path.join(process.cwd(), req.file.path);
     const fileContent = fs.readFileSync(filePath);
 
+    let nextNumber = 1;
+
+    // Function to ensure the '/audio' folder exists
+    async function ensureAudioFolderExists() {
+      const createFolderResponse = await fetch('https://api.dropboxapi.com/2/files/create_folder_v2', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${DROPBOX_ACCESS_TOKEN}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ path: '/audio', autorename: false }),
+      });
+
+      if (createFolderResponse.ok) {
+        console.log('Audio folder created.');
+      } else {
+        const errorData = await createFolderResponse.json();
+        if (errorData.error && errorData.error['.tag'] === 'path' && errorData.error.path['.tag'] === 'conflict') {
+          console.log('Audio folder already exists.');
+        } else {
+          console.error('Error creating audio folder:', errorData);
+          throw new Error('Failed to ensure audio folder exists.');
+        }
+      }
+    }
+
+    // Ensure the '/audio' folder exists
+    await ensureAudioFolderExists();
+
     // Step 1: List existing files in the Dropbox '/audio' folder
     const listResponse = await fetch('https://api.dropboxapi.com/2/files/list_folder', {
       method: 'POST',
@@ -51,8 +80,6 @@ app.post('/upload', upload.single('audio'), async (req, res) => {
     });
 
     const listData = await listResponse.json();
-
-    let nextNumber = 1;
 
     if (listResponse.ok) {
       // Step 2: Extract numbers from filenames
@@ -68,12 +95,12 @@ app.post('/upload', upload.single('audio'), async (req, res) => {
       }
     } else {
       console.error('Error listing files:', listData);
-      // Handle error if needed
+      // Proceed with nextNumber = 1 if listing fails
     }
 
-    // Step 4: Name the new file
+    // Step 4: Name the new file without the emoji
     const formattedNumber = String(nextNumber).padStart(3, '0');
-    const fileName = `💨 Fart #${formattedNumber}.wav`;
+    const fileName = `Fart #${formattedNumber}.wav`; // Remove the emoji here
     const dropboxPath = `/audio/${fileName}`;
 
     // Upload file to Dropbox
@@ -132,9 +159,10 @@ app.post('/upload', upload.single('audio'), async (req, res) => {
       });
     }
 
-    res.status(500).json({ message: 'Server error', error });
+    res.status(500).json({ message: 'Server error', error: error.message });
   }
 });
+
 
 // Route to fetch the archive of uploaded audio files from Dropbox
 app.get('/archive', async (req, res) => {
@@ -173,8 +201,12 @@ app.get('/archive', async (req, res) => {
 
         if (tempLinkResponse.ok) {
           const link = tempLinkData.link;
+
+          // Prepend the emoji to the display name
+          const displayName = `💨 ${entry.name}`;
+
           return {
-            name: entry.name,
+            name: displayName,
             link,
             number,
           };
@@ -194,15 +226,10 @@ app.get('/archive', async (req, res) => {
     }
   } catch (error) {
     console.error('Error fetching archive:', error);
-    res.status(500).json({ message: 'Server error', error });
+    res.status(500).json({ message: 'Server error', error: error.message });
   }
 });
 
-
-// Root route (optional) to serve a simple message or redirect to index.html
-app.get('/', (req, res) => {
-  res.send('Welcome to the Digital Fart Backend API');
-});
 
 // Start the server
 const PORT = process.env.PORT || 3000;
