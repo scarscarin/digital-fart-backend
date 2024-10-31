@@ -67,8 +67,8 @@ app.post('/upload', upload.single('audio'), async (req, res) => {
     // Ensure the '/audio' folder exists
     await ensureAudioFolderExists();
 
-    // Set the filename to "💨 Fart.wav"
-    const fileName = '💨 Fart.wav';
+    // Set the filename to "Fart.wav" without the emoji
+    const fileName = 'Fart.wav';
     const dropboxPath = `/audio/${fileName}`;
 
     // Prepare the arguments for the Dropbox API
@@ -81,16 +81,13 @@ app.post('/upload', upload.single('audio'), async (req, res) => {
 
     const jsonArgs = JSON.stringify(args);
 
-    // Base64 encode the JSON arguments to handle non-ASCII characters
-    const base64Args = Buffer.from(jsonArgs, 'utf8').toString('base64');
-
     // Upload file to Dropbox
     const dropboxResponse = await fetch('https://content.dropboxapi.com/2/files/upload', {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${DROPBOX_ACCESS_TOKEN}`,
         'Content-Type': 'application/octet-stream',
-        'Dropbox-API-Arg': base64Args,
+        'Dropbox-API-Arg': jsonArgs,
       },
       body: fileContent,
     });
@@ -173,8 +170,10 @@ app.get('/archive', async (req, res) => {
 
         if (tempLinkResponse.ok) {
           const link = tempLinkData.link;
+          // Prepend the emoji to the display name
+          const displayName = `💨 ${entry.name.replace('.wav', '')}`;
           return {
-            name: entry.name.replace('.wav', ''), // Remove file extension for display
+            name: displayName,
             link,
           };
         } else {
