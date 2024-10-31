@@ -39,7 +39,7 @@ app.post('/upload', upload.single('audio'), async (req, res) => {
     // Path of the uploaded file
     const filePath = path.join(process.cwd(), req.file.path);
     const fileContent = fs.readFileSync(filePath);
-    const dropboxPath = `/audio/${req.file.originalname}`;
+    const dropboxPath = `/audio/${Date.now()}_${req.file.originalname}`;
 
     // Upload file to Dropbox
     const dropboxResponse = await fetch('https://content.dropboxapi.com/2/files/upload', {
@@ -117,8 +117,8 @@ app.get('/archive', async (req, res) => {
 
     if (dropboxResponse.ok) {
       const audioFiles = (await Promise.all(data.entries.map(async (entry) => {
-        // Create a shared link for each file
-        const sharedLinkResponse = await fetch('https://api.dropboxapi.com/2/sharing/create_shared_link_with_settings', {
+        // Get a temporary link for each file
+        const tempLinkResponse = await fetch('https://api.dropboxapi.com/2/files/get_temporary_link', {
           method: 'POST',
           headers: {
             'Authorization': `Bearer ${DROPBOX_ACCESS_TOKEN}`,
@@ -126,32 +126,21 @@ app.get('/archive', async (req, res) => {
           },
           body: JSON.stringify({
             path: entry.path_lower,
-            settings: {
-              requested_visibility: 'public',
-              audience: 'public',
-              access: 'viewer',
-            },
           }),
         });
 
-        const sharedLinkData = await sharedLinkResponse.json();
+        const tempLinkData = await tempLinkResponse.json();
 
-        // Extract the direct download URL
-        let link = '';
-        if (sharedLinkResponse.ok) {
-          link = sharedLinkData.url.replace('?dl=0', '?raw=1');
-        } else if (sharedLinkData.error && sharedLinkData.error.shared_link_already_exists) {
-          // If a shared link already exists, retrieve it
-          link = sharedLinkData.error.shared_link_already_exists.metadata.url.replace('?dl=0', '?raw=1');
+        if (tempLinkResponse.ok) {
+          const link = tempLinkData.link;
+          return {
+            name: entry.name,
+            link,
+          };
         } else {
-          console.error('Error creating shared link:', sharedLinkData);
+          console.error('Error getting temporary link:', tempLinkData);
           return null; // Skip this entry if there's an error
         }
-
-        return {
-          name: entry.name,
-          link,
-        };
       }))).filter(file => file !== null); // Filter out null entries
 
       res.json({ entries: audioFiles });
@@ -164,6 +153,7 @@ app.get('/archive', async (req, res) => {
     res.status(500).json({ message: 'Server error', error });
   }
 });
+
 
 // Root route (optional) to serve a simple message or redirect to index.html
 app.get('/', (req, res) => {
